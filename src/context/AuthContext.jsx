@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { authAdapter, DEMO_USERS } from "../lib/auth";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { authAdapter, formatSupabaseUser } from "../lib/auth";
 
 const AuthContext = createContext();
 
@@ -9,72 +9,104 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const isSubmittingRef = useRef(false);
+
   useEffect(() => {
+    let isMounted = true;
+
+    // 1. Initial Session Check from Supabase
     async function initSession() {
       try {
-        const existingSession = await authAdapter.getSession();
-        if (existingSession) {
-          setSession(existingSession);
-          setUser(existingSession.user);
+        const result = await authAdapter.getSession();
+        if (!isMounted) return;
+
+        if (result && result.session && result.user) {
+          setSession(result.session);
+          setUser(result.user);
         }
       } catch (err) {
-        console.error("Failed to restore session", err);
+        console.warn("[AuthContext] Initialization notice:", err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
+
     initSession();
+
+    // 2. Listen to real Supabase Auth state events
+    const subscription = authAdapter.onAuthStateChange((event, sbSession, formattedUser) => {
+      if (!isMounted) return;
+
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        if (sbSession && formattedUser) {
+          setSession(sbSession);
+          setUser(formattedUser);
+        }
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+        setSession(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      if (subscription && typeof subscription.unsubscribe === "function") {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const login = useCallback(async (credentials) => {
+    if (isSubmittingRef.current) return { success: false };
+    isSubmittingRef.current = true;
     setIsLoading(true);
     setError(null);
     try {
       const response = await authAdapter.login(credentials);
       if (response.error || !response.user) {
-        setError(response.error || "Authentication failed");
-        return { success: false, error: response.error || "Authentication failed" };
+        const errMsg = response.error || "Authentication failed. Please check your credentials.";
+        setError(errMsg);
+        return { success: false, error: errMsg };
       }
-      const newSession = {
-        user: response.user,
-        token: `mock_jwt_${Math.random().toString(36).substring(2)}`,
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
-      };
+
       setUser(response.user);
-      setSession(newSession);
-      return { success: true };
+      setSession(response.session);
+      return { success: true, user: response.user };
     } catch (err) {
-      const msg = err?.message || "An unexpected error occurred.";
+      const msg = err?.message || "An unexpected error occurred during login.";
       setError(msg);
       return { success: false, error: msg };
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }, []);
 
   const register = useCallback(async (credentials) => {
+    if (isSubmittingRef.current) return { success: false };
+    isSubmittingRef.current = true;
     setIsLoading(true);
     setError(null);
     try {
       const response = await authAdapter.register(credentials);
       if (response.error || !response.user) {
-        setError(response.error || "Registration failed");
-        return { success: false, error: response.error || "Registration failed" };
+        const errMsg = response.error || "Registration failed. Please check your details.";
+        setError(errMsg);
+        return { success: false, error: errMsg };
       }
-      const newSession = {
-        user: response.user,
-        token: `mock_jwt_${Math.random().toString(36).substring(2)}`,
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
-      };
+
       setUser(response.user);
-      setSession(newSession);
-      return { success: true };
+      setSession(response.session);
+      return { success: true, user: response.user, session: response.session };
     } catch (err) {
-      const msg = err?.message || "An unexpected error occurred.";
+      const msg = err?.message || "An unexpected error occurred during registration.";
       setError(msg);
       return { success: false, error: msg };
     } finally {
       setIsLoading(false);
+      isSubmittingRef.current = false;
     }
   }, []);
 
@@ -84,24 +116,10 @@ export function AuthProvider({ children }) {
       await authAdapter.logout();
       setUser(null);
       setSession(null);
+    } catch (err) {
+      console.warn("[AuthContext] Logout notice:", err);
     } finally {
       setIsLoading(false);
-    }
-  }, []);
-
-  const switchDemoUser = useCallback((index) => {
-    const demo = DEMO_USERS[index % DEMO_USERS.length];
-    if (demo) {
-      const newSession = {
-        user: demo,
-        token: `mock_demo_${demo.id}`,
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
-      };
-      setUser(demo);
-      setSession(newSession);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("mirror_auth_session_mock", JSON.stringify(newSession));
-      }
     }
   }, []);
 
@@ -115,7 +133,6 @@ export function AuthProvider({ children }) {
         login,
         register,
         logout,
-        switchDemoUser,
       }}
     >
       {children}

@@ -70,13 +70,13 @@ export function AboutProject() {
 
             <div className="p-3 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-2">
               <span className="text-white/60 shrink-0">Auth Layer:</span>
-              <span className="text-cyan-400 font-semibold text-right text-[10px] sm:text-xs">Decoupled Adapter</span>
+              <span className="text-cyan-400 font-semibold text-right text-[10px] sm:text-xs">Supabase Auth</span>
             </div>
           </div>
 
           <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-indigo-500/[0.08] border border-indigo-500/20 text-[10px] sm:text-[11px] text-white/70 leading-relaxed font-sans">
-            <strong className="text-indigo-300 font-semibold block mb-1">Architecture Ready:</strong>
-            Authentication UI and hooks are fully isolated via <code className="text-indigo-200">MockAuthAdapter</code>, allowing 1-step backend hookup without modifying UI forms.
+            <strong className="text-indigo-300 font-semibold block mb-1">Supabase Live Integration:</strong>
+            Authentication UI and hooks are connected to Supabase Auth with real-time session persistence, registration, login, and secure tokens.
           </div>
         </div>
       </div>

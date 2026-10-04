@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
-import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, UserCheck } from "lucide-react";
+import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export function LoginForm({ onSwitchToRegister }) {
   const navigate = useNavigate();
-  const { login, isLoading, error: authError, switchDemoUser } = useAuth();
+  const { login, isLoading, error: authError } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,36 +17,30 @@ export function LoginForm({ onSwitchToRegister }) {
     e.preventDefault();
     setClientError(null);
 
-    if (!email.trim()) {
-      setClientError("Please enter your email address.");
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setClientError("Iltimos, email manzilingizni kiriting.");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setClientError("Please enter a valid email format.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setClientError("Iltimos, to'g'ri email format kiriting.");
       return;
     }
 
     if (!password) {
-      setClientError("Please enter your password.");
+      setClientError("Iltimos, parolingizni kiriting.");
       return;
     }
 
-    const res = await login({ email: email.trim(), password });
+    const res = await login({ email: cleanEmail, password });
     if (res.success) {
       setIsSuccess(true);
       setTimeout(() => {
         navigate("/");
       }, 500);
     }
-  };
-
-  const handleFillDemo = (index) => {
-    switchDemoUser(index);
-    setIsSuccess(true);
-    setTimeout(() => {
-      navigate("/");
-    }, 400);
   };
 
   return (
@@ -70,7 +64,7 @@ export function LoginForm({ onSwitchToRegister }) {
           </h1>
 
           <p className="text-xs sm:text-sm text-white/50 leading-relaxed">
-            Return to your digital reflection.
+            O&apos;z profilingizga kiring va raqamli aksingizni davom ettiring.
           </p>
         </div>
 
@@ -92,28 +86,30 @@ export function LoginForm({ onSwitchToRegister }) {
             className="alert alert-success bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs py-2.5 rounded-2xl"
           >
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-            <span>Authenticated. Entering Mirror Internet...</span>
+            <span>Tizimga kirildi! Mirror Internet ochilmoqda...</span>
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div className="space-y-1.5">
             <label
               htmlFor="login-email"
-              className="block text-xs font-mono text-white/60 tracking-wider uppercase"
+              className="block text-xs font-mono text-white/70 tracking-wider uppercase"
             >
-              Email Address
+              Email Manzil
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 id="login-email"
+                name="mirror_login_user_email"
                 type="email"
-                placeholder="explorer@mirror.io"
+                placeholder="ismingiz@email.com"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
+                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm placeholder:text-white/20"
               />
             </div>
           </div>
@@ -122,31 +118,23 @@ export function LoginForm({ onSwitchToRegister }) {
             <div className="flex items-center justify-between">
               <label
                 htmlFor="login-password"
-                className="block text-xs font-mono text-white/60 tracking-wider uppercase"
+                className="block text-xs font-mono text-white/70 tracking-wider uppercase"
               >
-                Password
+                Parol
               </label>
-              <a
-                href="#forgot"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert("For development demo: You can log in with any email and password or use the 1-click demo buttons below.");
-                }}
-                className="text-[11px] font-mono text-indigo-400 hover:text-indigo-300 transition-colors"
-              >
-                Forgot password?
-              </a>
             </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 id="login-password"
+                name="mirror_login_user_password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
+                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm placeholder:text-white/20"
               />
             </div>
           </div>
@@ -162,40 +150,16 @@ export function LoginForm({ onSwitchToRegister }) {
           </button>
         </form>
 
-        <div className="pt-2 border-t border-white/10 space-y-2.5">
-          <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest text-center">
-            Demo Instant Exploration
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleFillDemo(0)}
-              className="btn btn-sm btn-ghost bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-[11px] font-mono text-white/70 hover:text-white rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Explorer Demo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo(1)}
-              className="btn btn-sm btn-ghost bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-[11px] font-mono text-white/70 hover:text-white rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Calm Demo</span>
-            </button>
-          </div>
-        </div>
-
         <div className="text-center pt-2">
           <p className="text-xs text-white/50">
-            Don&apos;t have an account?{" "}
+            Akkauntingiz yo&apos;qmi?{" "}
             {onSwitchToRegister ? (
               <button
                 type="button"
                 onClick={onSwitchToRegister}
                 className="text-indigo-400 hover:text-indigo-300 font-mono font-medium underline underline-offset-4 cursor-pointer"
               >
-                Create one
+                Ro&apos;yxatdan o&apos;tish
               </button>
             ) : (
               <Link
@@ -203,7 +167,7 @@ export function LoginForm({ onSwitchToRegister }) {
                 className="text-indigo-400 hover:text-indigo-300 font-mono font-medium underline underline-offset-4 cursor-pointer"
                 id="login-to-register-link"
               >
-                Create one
+                Ro&apos;yxatdan o&apos;tish
               </Link>
             )}
           </p>

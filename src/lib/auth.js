@@ -1,180 +1,214 @@
 /**
- * MIRROR INTERNET - Authentication Abstraction Layer (JavaScript)
+ * MIRROR INTERNET - Supabase Authentication Adapter
  * 
- * ARCHITECTURAL NOTICE:
- * This layer decouples authentication logic from UI components.
- * Currently uses a mock/in-memory adapter for preview and prototyping.
- * 
- * To connect Supabase Auth later:
- * 1. npm install @supabase/supabase-js
- * 2. Swap this mock adapter with supabase.auth methods without touching any UI code.
+ * Standard Email/Password Authentication:
+ * - Register: supabase.auth.signUp({ email, password, options: { data: { username } } })
+ * - Login: supabase.auth.signInWithPassword({ email, password })
+ * - Logout: supabase.auth.signOut()
+ * - Session: supabase.auth.getSession()
+ * - Auth Listener: supabase.auth.onAuthStateChange()
  */
 
-export const DEMO_USERS = [
-  {
-    id: "usr_mirror_001",
-    email: "explorer@mirror.io",
-    username: "QuantumEcho",
-    avatarUrl: "",
-    createdAt: "2026-03-15T08:00:00Z",
-    reflectionPersonality: "EXPLORER",
-    interactionEntropy: 78,
-    totalSessions: 14,
-  },
-  {
-    id: "usr_mirror_002",
-    email: "calm@mirror.io",
-    username: "ZenWave",
-    avatarUrl: "",
-    createdAt: "2026-03-20T11:30:00Z",
-    reflectionPersonality: "CALM",
-    interactionEntropy: 24,
-    totalSessions: 22,
-  },
-];
+import { supabase } from "./supabase";
 
-const STORAGE_KEY = "mirror_auth_session_mock";
-const REGISTERED_USERS_KEY = "mirror_registered_users_mock";
+export function formatSupabaseUser(sbUser) {
+  if (!sbUser) return null;
+  return {
+    id: sbUser.id,
+    email: sbUser.email,
+    username:
+      sbUser.user_metadata?.username ||
+      sbUser.user_metadata?.full_name ||
+      sbUser.email?.split("@")[0] ||
+      "Explorer",
+    createdAt: sbUser.created_at || new Date().toISOString(),
+    reflectionPersonality: sbUser.user_metadata?.reflectionPersonality || "EXPLORER",
+    interactionEntropy: sbUser.user_metadata?.interactionEntropy || 50,
+    totalSessions: sbUser.user_metadata?.totalSessions || 1,
+    rawSupabaseUser: sbUser,
+  };
+}
 
-export class MockAuthAdapter {
-  getStoredUsers() {
-    if (typeof window === "undefined") return DEMO_USERS;
-    try {
-      const stored = localStorage.getItem(REGISTERED_USERS_KEY);
-      if (stored) {
-        return [...DEMO_USERS, ...JSON.parse(stored)];
-      }
-    } catch {
-      // ignore
-    }
-    return DEMO_USERS;
+function formatAuthError(error) {
+  if (!error) return "An unexpected error occurred.";
+  const msg = typeof error === "string" ? error : error.message || "";
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many requests")) {
+    return "Email yuborish limiti oshib ketdi (Rate limit). Iltimos, biroz kuting yoki mavjud akkauntingiz bilan to'g'ridan-to'g'ri Kirish (Login) qiling.";
   }
 
-  saveNewUser(user) {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = localStorage.getItem(REGISTERED_USERS_KEY);
-      const list = stored ? JSON.parse(stored) : [];
-      list.push(user);
-      localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(list));
-    } catch {
-      // ignore
-    }
+  if (lower.includes("invalid login credentials") || lower.includes("invalid credentials")) {
+    return "Email yoki parol noto'g'ri. Iltimos, qaytadan tekshirib ko'ring.";
   }
 
+  if (lower.includes("user already registered") || lower.includes("already exists")) {
+    return "Bu email bilan avval ro'yxatdan o'tilgan. Iltimos, 'Kirish (Login)' tugmasini bosing.";
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return "Emailingiz tasdiqlanmagan. Iltimos, emailingizdagi havolani bosing yoki Supabase panelida 'Confirm email' sozlamasini o'chiring.";
+  }
+
+  return msg;
+}
+
+export class SupabaseAuthAdapter {
+  constructor() {
+    this._isSubmitting = false;
+  }
+
+  /**
+   * Get the current active session from Supabase
+   */
   async getSession() {
-    if (typeof window === "undefined") return null;
     try {
-      const item = localStorage.getItem(STORAGE_KEY);
-      if (!item) return null;
-      const session = JSON.parse(item);
-      if (Date.now() > session.expiresAt) {
-        localStorage.removeItem(STORAGE_KEY);
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn("[Supabase Auth] getSession notice:", error.message);
         return null;
       }
-      return session;
-    } catch {
+      if (!data?.session) return null;
+
+      return {
+        session: data.session,
+        user: formatSupabaseUser(data.session.user),
+      };
+    } catch (err) {
+      console.warn("[Supabase Auth] getSession exception:", err);
       return null;
     }
   }
 
+  /**
+   * Standard Sign in with Email & Password
+   */
   async login(credentials) {
-    // Artificial latency for realistic async feel
-    await new Promise((res) => setTimeout(res, 500));
+    if (this._isSubmitting) {
+      return { user: null, session: null, error: "Jarayon bajarilmoqda, kuting..." };
+    }
 
     const email = (credentials.email || "").trim().toLowerCase();
     const password = credentials.password;
 
     if (!email || !password) {
-      return { user: null, error: "Please provide both email and password." };
+      return { user: null, session: null, error: "Iltimos, email va parolingizni kiriting." };
     }
 
-    const users = this.getStoredUsers();
-    const matched = users.find((u) => u.email.toLowerCase() === email);
+    this._isSubmitting = true;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (!matched) {
-      // Allow demo exploration with any valid email
-      if (email.includes("@")) {
-        const newUser = {
-          id: `usr_${Math.random().toString(36).slice(2, 9)}`,
-          email: email,
-          username: email.split("@")[0],
-          createdAt: new Date().toISOString(),
-          reflectionPersonality: "CURIOUS",
-          interactionEntropy: 50,
-          totalSessions: 1,
-        };
-        this.saveSession(newUser);
-        return { user: newUser, error: null };
+      if (error) {
+        return { user: null, session: null, error: formatAuthError(error) };
       }
-      return { user: null, error: "Invalid email or credentials." };
-    }
 
-    this.saveSession(matched);
-    return { user: matched, error: null };
+      const formattedUser = formatSupabaseUser(data.user);
+      return {
+        user: formattedUser,
+        session: data.session,
+        error: null,
+      };
+    } catch (err) {
+      return {
+        user: null,
+        session: null,
+        error: formatAuthError(err),
+      };
+    } finally {
+      this._isSubmitting = false;
+    }
   }
 
+  /**
+   * Standard Register a new user with Email and Password
+   */
   async register(credentials) {
-    await new Promise((res) => setTimeout(res, 600));
+    if (this._isSubmitting) {
+      return { user: null, session: null, error: "Jarayon bajarilmoqda, kuting..." };
+    }
 
     const { username, email, password, confirmPassword } = credentials;
 
-    if (!username || username.trim().length < 3) {
-      return { user: null, error: "Username must be at least 3 characters." };
-    }
+    const cleanEmail = (email || "").trim().toLowerCase();
+    const cleanUsername = (username || cleanEmail.split("@")[0] || "Explorer").trim();
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return { user: null, error: "Please enter a valid email address." };
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return { user: null, session: null, error: "Iltimos, to'g'ri email manzil kiriting." };
     }
 
     if (!password || password.length < 6) {
-      return { user: null, error: "Password must be at least 6 characters." };
+      return { user: null, session: null, error: "Parol kamida 6 ta belgidan iborat bo'lishi kerak." };
     }
 
     if (confirmPassword !== undefined && password !== confirmPassword) {
-      return { user: null, error: "Passwords do not match." };
+      return { user: null, session: null, error: "Kiritilgan parollar bir-biriga mos kelmadi." };
     }
 
-    const users = this.getStoredUsers();
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      return { user: null, error: "An account with this email already exists." };
-    }
-
-    const newUser = {
-      id: `usr_${Math.random().toString(36).slice(2, 9)}`,
-      email: email.trim().toLowerCase(),
-      username: username.trim(),
-      createdAt: new Date().toISOString(),
-      reflectionPersonality: "EXPLORER",
-      interactionEntropy: 45,
-      totalSessions: 1,
-    };
-
-    this.saveNewUser(newUser);
-    this.saveSession(newUser);
-
-    return { user: newUser, error: null };
-  }
-
-  async logout() {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  saveSession(user) {
-    if (typeof window === "undefined") return;
-    const session = {
-      user,
-      token: `mock_jwt_${Math.random().toString(36).substring(2)}`,
-      expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-    };
+    this._isSubmitting = true;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    } catch {
-      // ignore
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: {
+            username: cleanUsername,
+            reflectionPersonality: "EXPLORER",
+            interactionEntropy: 50,
+          },
+        },
+      });
+
+      if (error) {
+        return { user: null, session: null, error: formatAuthError(error) };
+      }
+
+      const formattedUser = formatSupabaseUser(data.user);
+      return {
+        user: formattedUser,
+        session: data.session,
+        error: null,
+      };
+    } catch (err) {
+      return {
+        user: null,
+        session: null,
+        error: formatAuthError(err),
+      };
+    } finally {
+      this._isSubmitting = false;
     }
+  }
+
+  /**
+   * Sign out the active user
+   */
+  async logout() {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.warn("[Supabase Auth] signOut notice:", error.message);
+      }
+    } catch (err) {
+      console.warn("[Supabase Auth] signOut exception:", err);
+    }
+  }
+
+  /**
+   * Subscribe to Supabase auth state changes
+   */
+  onAuthStateChange(callback) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        const formattedUser = session?.user ? formatSupabaseUser(session.user) : null;
+        callback(event, session, formattedUser);
+      }
+    );
+    return subscription;
   }
 }
 
-export const authAdapter = new MockAuthAdapter();
+export const authAdapter = new SupabaseAuthAdapter();

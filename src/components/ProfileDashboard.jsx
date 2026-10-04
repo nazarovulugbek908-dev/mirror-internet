@@ -86,8 +86,10 @@ export function ProfileDashboard() {
                 {currentIdentity.username}
               </h1>
               {user ? (
-                <span className="badge badge-success badge-sm font-mono text-[9px] sm:text-[10px] shrink-0">
-                  AUTHENTICATED
+                <span className={`badge badge-sm font-mono text-[9px] sm:text-[10px] shrink-0 ${
+                  user.isDemo ? "badge-warning" : "badge-success"
+                }`}>
+                  {user.isDemo ? "DEMO PREVIEW" : "SUPABASE AUTHENTICATED"}
                 </span>
               ) : (
                 <span className="badge badge-ghost badge-sm font-mono text-[9px] sm:text-[10px] shrink-0">
@@ -96,6 +98,9 @@ export function ProfileDashboard() {
               )}
             </div>
             <p className="text-[11px] sm:text-xs font-mono text-white/50 mt-0.5 sm:mt-1 truncate">{currentIdentity.email}</p>
+            {user?.id && !user?.isDemo && (
+              <p className="text-[9px] font-mono text-white/30 truncate mt-0.5">UID: {user.id}</p>
+            )}
           </div>
         </div>
 
@@ -328,37 +333,13 @@ export function ProfileDashboard() {
           </div>
 
           <div className="space-y-3 sm:space-y-4 pt-2">
-            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.03] border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-sm font-bold text-white block">Switch Demo Accounts</span>
-                <span className="text-[11px] sm:text-xs text-white/50">
-                  Quickly test different archetype personas.
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => switchDemoUser(0)}
-                  className="btn btn-xs btn-outline rounded-lg text-white min-h-[32px] px-3"
-                >
-                  Explorer
-                </button>
-                <button
-                  onClick={() => switchDemoUser(1)}
-                  className="btn btn-xs btn-outline rounded-lg text-white min-h-[32px] px-3"
-                >
-                  Calm
-                </button>
-              </div>
-            </div>
-
             <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-indigo-500/[0.06] border border-indigo-500/20 text-[11px] sm:text-xs text-white/70 space-y-2">
               <div className="flex items-center gap-2 text-indigo-300 font-bold font-mono">
                 <Sparkles className="w-4 h-4" />
-                <span>Supabase Backend Integration Ready</span>
+                <span>Supabase Live Auth Connected</span>
               </div>
               <p className="leading-relaxed">
-                This profile is powered by the decoupled <code className="text-indigo-200">MockAuthAdapter</code>.
-                When ready to link permanent Supabase Auth, swap the adapter in <code className="text-indigo-200">src/lib/auth.js</code>.
+                Authentication is powered by official <code className="text-indigo-200">@supabase/supabase-js</code> with active session persistence, secure token refresh, and real-time auth event listeners.
               </p>
             </div>
           </div>

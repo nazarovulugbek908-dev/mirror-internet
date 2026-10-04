@@ -2,21 +2,21 @@ import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
-import { Sparkles, User as UserIcon, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Sparkles, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export function RegisterForm({ onSwitchToLogin }) {
   const navigate = useNavigate();
   const { register, isLoading, error: authError } = useAuth();
 
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [clientError, setClientError] = useState(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [confirmationNotice, setConfirmationNotice] = useState(false);
 
   const passwordStrength = useMemo(() => {
-    if (!password) return { score: 0, label: "Empty", color: "#64748b" };
+    if (!password) return { score: 0, label: "Bo'sh", color: "#64748b" };
     let score = 0;
     if (password.length >= 6) score += 1;
     if (password.length >= 10) score += 1;
@@ -24,47 +24,48 @@ export function RegisterForm({ onSwitchToLogin }) {
     if (/[0-9]/.test(password)) score += 1;
     if (/[^A-Za-z0-9]/.test(password)) score += 1;
 
-    if (score <= 2) return { score: 30, label: "Basic", color: "#f43f5e" };
-    if (score <= 4) return { score: 70, label: "Resilient", color: "#f59e0b" };
-    return { score: 100, label: "Quantum Secure", color: "#10b981" };
+    if (score <= 2) return { score: 30, label: "Oddiy", color: "#f43f5e" };
+    if (score <= 4) return { score: 70, label: "Yaxshi", color: "#f59e0b" };
+    return { score: 100, label: "Juda kuchli", color: "#10b981" };
   }, [password]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setClientError(null);
+    setConfirmationNotice(false);
 
-    if (!username.trim() || username.trim().length < 3) {
-      setClientError("Username must be at least 3 characters.");
-      return;
-    }
+    const cleanEmail = email.trim();
 
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setClientError("Please enter a valid email address.");
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setClientError("Iltimos, to'g'ri email manzil kiriting (masalan: ismingiz@email.com).");
       return;
     }
 
     if (!password || password.length < 6) {
-      setClientError("Password must be at least 6 characters.");
+      setClientError("Parol kamida 6 ta belgidan iborat bo'lishi kerak.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setClientError("Passwords do not match.");
+      setClientError("Kiritilgan parollar bir-biriga mos kelmadi.");
       return;
     }
 
     const res = await register({
-      username: username.trim(),
-      email: email.trim(),
+      email: cleanEmail,
       password,
       confirmPassword,
     });
 
     if (res.success) {
-      setIsSuccess(true);
-      setTimeout(() => {
-        navigate("/");
-      }, 500);
+      if (res.session) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          navigate("/");
+        }, 500);
+      } else {
+        setConfirmationNotice(true);
+      }
     }
   };
 
@@ -89,7 +90,7 @@ export function RegisterForm({ onSwitchToLogin }) {
           </h1>
 
           <p className="text-xs sm:text-sm text-white/50 leading-relaxed">
-            Start your own digital journey.
+            Ro&apos;yxatdan o&apos;ting va Mirror Internet dunyosiga kiring.
           </p>
         </div>
 
@@ -104,6 +105,22 @@ export function RegisterForm({ onSwitchToLogin }) {
           </motion.div>
         )}
 
+        {confirmationNotice && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-2 leading-relaxed"
+          >
+            <div className="flex items-center gap-2 font-bold text-amber-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Akkaunt yaratildi!</span>
+            </div>
+            <p>
+              Supabase emailingizga tasdiqlash xati yubordi. Xatingizdagi havolani bosing yoki Supabase panelida <strong>Confirm email</strong> sozlamasini o&apos;chirib to&apos;g&apos;ridan-to&apos;g&apos;ri kiring.
+            </p>
+          </motion.div>
+        )}
+
         {isSuccess && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -111,49 +128,30 @@ export function RegisterForm({ onSwitchToLogin }) {
             className="alert alert-success bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs py-2.5 rounded-2xl"
           >
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-            <span>Reflection initiated! Entering Mirror Internet...</span>
+            <span>Akkaunt yaratildi! Mirror Internetga kiritilmoqda...</span>
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label
-              htmlFor="register-username"
-              className="block text-xs font-mono text-white/60 tracking-wider uppercase"
-            >
-              Digital Alias
-            </label>
-            <div className="relative">
-              <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input
-                id="register-username"
-                type="text"
-                placeholder="QuantumDrifter"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div className="space-y-1.5">
             <label
               htmlFor="register-email"
-              className="block text-xs font-mono text-white/60 tracking-wider uppercase"
+              className="block text-xs font-mono text-white/70 tracking-wider uppercase"
             >
-              Email Address
+              Email Manzil
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 id="register-email"
+                name="mirror_reg_email"
                 type="email"
-                placeholder="drifter@mirror.io"
+                placeholder="ismingiz@email.com"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
+                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm placeholder:text-white/20"
               />
             </div>
           </div>
@@ -161,27 +159,29 @@ export function RegisterForm({ onSwitchToLogin }) {
           <div className="space-y-1.5">
             <label
               htmlFor="register-password"
-              className="block text-xs font-mono text-white/60 tracking-wider uppercase"
+              className="block text-xs font-mono text-white/70 tracking-wider uppercase"
             >
-              Password
+              Parol
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 id="register-password"
+                name="mirror_reg_password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="kamida 6 ta belgi"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
+                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm placeholder:text-white/20"
               />
             </div>
 
             {password.length > 0 && (
               <div className="space-y-1 pt-1">
                 <div className="flex justify-between text-[10px] font-mono">
-                  <span className="text-white/40">CRYPTOGRAPHIC STRENGTH:</span>
+                  <span className="text-white/40">KUCHLILIK DARAJASI:</span>
                   <span style={{ color: passwordStrength.color }} className="font-semibold">
                     {passwordStrength.label}
                   </span>
@@ -202,20 +202,22 @@ export function RegisterForm({ onSwitchToLogin }) {
           <div className="space-y-1.5">
             <label
               htmlFor="register-confirm-password"
-              className="block text-xs font-mono text-white/60 tracking-wider uppercase"
+              className="block text-xs font-mono text-white/70 tracking-wider uppercase"
             >
-              Confirm Password
+              Parolni Tasdiqlang
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
               <input
                 id="register-confirm-password"
+                name="mirror_reg_confirm_password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="parolni qayta kiriting"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isLoading || isSuccess}
-                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm"
+                className="input input-bordered w-full glass-input rounded-2xl pl-10 pr-4 py-3 text-sm placeholder:text-white/20"
               />
             </div>
           </div>
@@ -233,14 +235,14 @@ export function RegisterForm({ onSwitchToLogin }) {
 
         <div className="text-center pt-2">
           <p className="text-xs text-white/50">
-            Already have an account?{" "}
+            Akkauntingiz bormi?{" "}
             {onSwitchToLogin ? (
               <button
                 type="button"
                 onClick={onSwitchToLogin}
                 className="text-indigo-400 hover:text-indigo-300 font-mono font-medium underline underline-offset-4 cursor-pointer"
               >
-                Login
+                Kirish (Login)
               </button>
             ) : (
               <Link
@@ -248,7 +250,7 @@ export function RegisterForm({ onSwitchToLogin }) {
                 className="text-indigo-400 hover:text-indigo-300 font-mono font-medium underline underline-offset-4 cursor-pointer"
                 id="register-to-login-link"
               >
-                Login
+                Kirish (Login)
               </Link>
             )}
           </p>

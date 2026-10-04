@@ -183,25 +183,7 @@ export function Navbar() {
                 )}
               </AnimatePresence>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 lg:gap-3">
-              <Link
-                to="/login"
-                className="px-3 lg:px-4 py-1.5 text-xs font-mono uppercase tracking-wider text-white/80 hover:text-white transition-colors min-h-[36px] flex items-center"
-                id="nav-login-link"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="btn btn-sm rounded-full btn-outline border-white/20 text-white hover:bg-white/10 text-xs font-mono uppercase tracking-wider min-h-[36px]"
-                id="nav-register-link"
-              >
-                <Sparkles className="w-3 h-3 text-indigo-400" />
-                Register
-              </Link>
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Mobile Hamburger Button */}
@@ -305,24 +287,7 @@ export function Navbar() {
                         Logout
                       </button>
                     </>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <Link
-                        to="/login"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="py-3 text-center text-xs font-mono uppercase tracking-wider rounded-xl bg-white/[0.05] border border-white/10 text-white min-h-[48px] flex items-center justify-center"
-                      >
-                        Login
-                      </Link>
-                      <Link
-                        to="/register"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="py-3 text-center text-xs font-mono uppercase tracking-wider rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-200 min-h-[48px] flex items-center justify-center"
-                      >
-                        Register
-                      </Link>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </motion.div>
